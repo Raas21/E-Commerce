@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@angular/material": "^19.2.11",
+    "@swimlane/ngx-datatable": "^21.0.0-alpha.1",
+    "chart.js": "^4.4.9",
+    "ng2-charts": "^8.0.0"
+  }
+}
