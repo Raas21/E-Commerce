@@ -38,7 +38,6 @@
                  <artifactId>spring-boot-starter-test</artifactId>
                  <scope>test</scope>
              </dependency>
-             <!-- Add Jakarta Persistence API explicitly -->
              <dependency>
                  <groupId>jakarta.persistence</groupId>
                  <artifactId>jakarta.persistence-api</artifactId>
