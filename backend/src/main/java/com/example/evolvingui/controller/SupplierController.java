@@ -2,6 +2,7 @@ package com.example.evolvingui.controller;
 
 import com.example.evolvingui.dto.SupplierDTO;
 import com.example.evolvingui.exception.SupplierNotFoundException;
+import com.example.evolvingui.exception.SupplierValidationException;
 import com.example.evolvingui.service.SupplierService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,11 @@ public class SupplierController {
         return supplierService.createSupplier(supplierDTO);
     }
 
+    @PutMapping("/{id}")
+    public SupplierDTO updateSupplier(@PathVariable Long id, @RequestBody SupplierDTO supplierDTO) {
+        return supplierService.updateSupplier(id, supplierDTO);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteSupplier(@PathVariable Long id) {
@@ -44,5 +50,10 @@ public class SupplierController {
     @ExceptionHandler(SupplierNotFoundException.class)
     public ResponseEntity<String> handleSupplierNotFoundException(SupplierNotFoundException ex) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(SupplierValidationException.class)
+    public ResponseEntity<String> handleSupplierValidationException(SupplierValidationException ex) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 }
