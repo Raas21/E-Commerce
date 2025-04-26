@@ -41,6 +41,11 @@ public class SupplierController {
         return supplierService.updateSupplier(id, supplierDTO);
     }
 
+    @PatchMapping("/{id}")
+    public SupplierDTO partialUpdateSupplier(@PathVariable Long id, @RequestBody SupplierDTO supplierDTO) {
+        return supplierService.partialUpdateSupplier(id, supplierDTO);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteSupplier(@PathVariable Long id) {

@@ -53,6 +53,22 @@ public class SupplierService {
         return convertToDTO(updatedSupplier);
     }
 
+    public SupplierDTO partialUpdateSupplier(Long id, SupplierDTO supplierDTO) {
+        Supplier supplier = supplierRepository.findById(id)
+                .orElseThrow(() -> new SupplierNotFoundException("Supplier with ID " + id + " not found"));
+        if (supplierDTO.getItem() != null) {
+            supplier.setItem(supplierDTO.getItem());
+        }
+        if (supplierDTO.getDeliveryTime() != null) {
+            supplier.setDeliveryTime(supplierDTO.getDeliveryTime());
+        }
+        if (supplierDTO.getRejectionRate() != null) {
+            supplier.setRejectionRate(supplierDTO.getRejectionRate());
+        }
+        Supplier updatedSupplier = supplierRepository.save(supplier);
+        return convertToDTO(updatedSupplier);
+    }
+
     public void deleteSupplier(Long id) {
         if (!supplierRepository.existsById(id)) {
             throw new SupplierNotFoundException("Supplier with ID " + id + " not found");
