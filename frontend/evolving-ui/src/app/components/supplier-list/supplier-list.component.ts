@@ -42,7 +42,8 @@ export class SupplierListComponent implements OnInit {
         this.errorMessage = '';
       },
       error: (err: any) => {
-        this.errorMessage = 'Failed to create supplier: ' + err.message;
+        console.error('Create supplier error:', err); // Add for debugging
+        this.errorMessage = `Failed to create supplier: ${err.status} - ${err.statusText} - ${err.message || err.error || 'Unknown Error'}`;
       }
     });
   }
