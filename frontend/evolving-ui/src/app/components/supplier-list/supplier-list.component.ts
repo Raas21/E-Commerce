@@ -1,23 +1,38 @@
 import { Component, OnInit } from '@angular/core';
 import { SupplierService } from '../../services/supplier.service';
+import { LlmService } from '../../services/llm.service';
 import { Supplier } from '../../models/supplier.model';
 import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-supplier-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './supplier-list.component.html',
   styleUrls: ['./supplier-list.component.css']
 })
 export class SupplierListComponent implements OnInit {
   suppliers: Supplier[] = [];
-  newSupplier: Supplier = { item: '', deliveryTime: 0, rejectionRate: 0 };
+  newSupplierForm: FormGroup;
+  editSupplierForm: FormGroup | null = null;
   editSupplier: Supplier | null = null;
   errorMessage: string = '';
+  llmPrompt: string = '';
+  llmResponse: string = '';
 
-  constructor(private supplierService: SupplierService) {}
+  constructor(
+    private supplierService: SupplierService,
+    private llmService: LlmService,
+    private fb: FormBuilder
+  ) {
+    this.newSupplierForm = this.fb.group({
+      item: ['', Validators.required],
+      deliveryTime: [0, [Validators.required, Validators.min(0)]],
+      rejectionRate: [0, [Validators.required, Validators.min(0), Validators.max(1)]]
+    });
+  }
 
   ngOnInit(): void {
     this.loadSuppliers();
@@ -35,14 +50,18 @@ export class SupplierListComponent implements OnInit {
   }
 
   createSupplier(): void {
-    this.supplierService.createSupplier(this.newSupplier).subscribe({
+    if (this.newSupplierForm.invalid) {
+      this.errorMessage = 'Please fill in all required fields correctly.';
+      return;
+    }
+    const newSupplier: Supplier = this.newSupplierForm.value;
+    this.supplierService.createSupplier(newSupplier).subscribe({
       next: (supplier: Supplier) => {
         this.suppliers.push(supplier);
-        this.newSupplier = { item: '', deliveryTime: 0, rejectionRate: 0 };
+        this.newSupplierForm.reset({ item: '', deliveryTime: 0, rejectionRate: 0 });
         this.errorMessage = '';
       },
       error: (err: any) => {
-        console.error('Create supplier error:', err); // Add for debugging
         this.errorMessage = `Failed to create supplier: ${err.status} - ${err.statusText} - ${err.message || err.error || 'Unknown Error'}`;
       }
     });
@@ -50,40 +69,48 @@ export class SupplierListComponent implements OnInit {
 
   startEdit(supplier: Supplier): void {
     this.editSupplier = { ...supplier };
+    this.editSupplierForm = this.fb.group({
+      item: [supplier.item, Validators.required],
+      deliveryTime: [supplier.deliveryTime, [Validators.required, Validators.min(0)]],
+      rejectionRate: [supplier.rejectionRate, [Validators.required, Validators.min(0), Validators.max(1)]]
+    });
   }
 
   updateSupplier(): void {
-    if (!this.editSupplier || this.editSupplier.id == null) {
-      this.errorMessage = 'No supplier selected for update';
+    if (!this.editSupplier || !this.editSupplier.id || !this.editSupplierForm?.valid) {
+      this.errorMessage = 'No supplier selected or form is invalid';
       return;
     }
 
-    const editSupplierNonNull = this.editSupplier;
-    const originalSupplier = this.suppliers.find(s => s.id === editSupplierNonNull.id);
+    const editSupplierNonNull = this.editSupplier as Supplier;
+    const supplierId = editSupplierNonNull.id!;
+    const originalSupplier = this.suppliers.find(s => s.id === supplierId);
     if (!originalSupplier) {
       this.errorMessage = 'Original supplier not found';
       return;
     }
 
     const partialUpdate: Partial<Supplier> = {};
-    if (editSupplierNonNull.item !== originalSupplier.item) {
-      partialUpdate.item = editSupplierNonNull.item;
+    const updatedValues = this.editSupplierForm.value;
+    if (updatedValues.item !== originalSupplier.item) {
+      partialUpdate.item = updatedValues.item;
     }
-    if (editSupplierNonNull.deliveryTime !== originalSupplier.deliveryTime) {
-      partialUpdate.deliveryTime = editSupplierNonNull.deliveryTime;
+    if (updatedValues.deliveryTime !== originalSupplier.deliveryTime) {
+      partialUpdate.deliveryTime = updatedValues.deliveryTime;
     }
-    if (editSupplierNonNull.rejectionRate !== originalSupplier.rejectionRate) {
-      partialUpdate.rejectionRate = editSupplierNonNull.rejectionRate;
+    if (updatedValues.rejectionRate !== originalSupplier.rejectionRate) {
+      partialUpdate.rejectionRate = updatedValues.rejectionRate;
     }
 
     if (Object.keys(partialUpdate).length > 0) {
-      this.supplierService.partialUpdateSupplier(editSupplierNonNull.id!, partialUpdate).subscribe({
+      this.supplierService.partialUpdateSupplier(supplierId, partialUpdate).subscribe({
         next: (updatedSupplier: Supplier) => {
           const index = this.suppliers.findIndex(s => s.id === updatedSupplier.id);
           if (index !== -1) {
             this.suppliers[index] = updatedSupplier;
           }
           this.editSupplier = null;
+          this.editSupplierForm = null;
           this.errorMessage = '';
         },
         error: (err: any) => {
@@ -92,24 +119,59 @@ export class SupplierListComponent implements OnInit {
       });
     } else {
       this.editSupplier = null;
+      this.editSupplierForm = null;
       this.errorMessage = '';
     }
   }
 
   deleteSupplier(id: number): void {
-    this.supplierService.deleteSupplier(id).subscribe({
-      next: () => {
-        this.suppliers = this.suppliers.filter(s => s.id !== id);
-        this.errorMessage = '';
-      },
-      error: (err: any) => {
-        this.errorMessage = 'Failed to delete supplier: ' + err.message;
-      }
-    });
+    if (window.confirm('Are you sure you want to delete this supplier?')) {
+      this.supplierService.deleteSupplier(id).subscribe({
+        next: () => {
+          this.suppliers = this.suppliers.filter(s => s.id !== id);
+          this.errorMessage = '';
+        },
+        error: (err: any) => {
+          this.errorMessage = 'Failed to delete supplier: ' + err.message;
+        }
+      });
+    }
   }
 
   cancelEdit(): void {
     this.editSupplier = null;
+    this.editSupplierForm = null;
     this.errorMessage = '';
+  }
+
+  getLlmSuggestion(): void {
+    if (!this.llmPrompt) {
+      this.errorMessage = 'Please enter a prompt for the suggestion.';
+      return;
+    }
+
+    if (this.suppliers.length === 0) {
+      this.llmResponse = 'No suppliers available to suggest.';
+      return;
+    }
+
+    const supplierData = this.suppliers.map(s => `ID: ${s.id}, item: ${s.item}, Delivery Time: ${s.deliveryTime} days, Rejection Rate: ${s.rejectionRate}`).join('\n');
+    const fullPrompt = `Supplier data:\n${supplierData}\n\n${this.llmPrompt} dont give reasoning, just give me the suggestion`;
+    console.log('LLM Prompt:', this.llmPrompt); // Debug: Log the LLM prompt
+    console.log('Prompt sent to LLM:', fullPrompt);
+
+    this.llmService.getSuggestion(fullPrompt).subscribe({
+      next: (response: any) => {
+        console.log('Raw LLM response:', response);
+        const suggestion = response.choices?.[0]?.message?.content || response.content || 'No suggestion available.';
+        console.log('Extracted suggestion:', suggestion); 
+        this.llmResponse = suggestion;
+        this.errorMessage = '';
+      },
+      error: (err: any) => {
+        this.errorMessage = `Failed to get suggestion: ${err.message}`;
+        this.llmResponse = '';
+      }
+    });
   }
 }

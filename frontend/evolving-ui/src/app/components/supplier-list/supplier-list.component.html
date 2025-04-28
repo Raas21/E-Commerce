@@ -1,64 +1,96 @@
 <div class="container">
-    <h2>Suppliers</h2>
-  
-    <!-- Error Message -->
-    <div *ngIf="errorMessage" class="alert alert-danger">
-      {{ errorMessage }}
-    </div>
-  
-    <!-- Create Supplier Form -->
-    <div class="create-form">
-      <h3>Add New Supplier</h3>
-      <div class="form-group">
-        <input type="text" [(ngModel)]="newSupplier.item" placeholder="Item" class="form-control" />
-      </div>
-      <div class="form-group">
-        <input type="number" [(ngModel)]="newSupplier.deliveryTime" placeholder="Delivery Time (days)" class="form-control" />
-      </div>
-      <div class="form-group">
-        <input type="number" [(ngModel)]="newSupplier.rejectionRate" placeholder="Rejection Rate (0-1)" class="form-control" step="0.01" />
-      </div>
-      <button (click)="createSupplier()" class="btn btn-primary">Add Supplier</button>
-    </div>
-  
-    <!-- Suppliers Table -->
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Item</th>
-          <th>Delivery Time (days)</th>
-          <th>Rejection Rate</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let supplier of suppliers">
-          <td>{{ supplier.id }}</td>
-          <td>{{ supplier.item }}</td>
-          <td>{{ supplier.deliveryTime }}</td>
-          <td>{{ supplier.rejectionRate }}</td>
-          <td>
-            <button (click)="startEdit(supplier)" class="btn btn-warning btn-sm">Edit</button>
-            <button (click)="deleteSupplier(supplier.id!)" class="btn btn-danger btn-sm">Delete</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  
-    <!-- Edit Supplier Form -->
-    <div *ngIf="editSupplier" class="edit-form">
-      <h3>Edit Supplier</h3>
-      <div class="form-group">
-        <input type="text" [(ngModel)]="editSupplier.item" class="form-control" />
-      </div>
-      <div class="form-group">
-        <input type="number" [(ngModel)]="editSupplier.deliveryTime" class="form-control" />
-      </div>
-      <div class="form-group">
-        <input type="number" [(ngModel)]="editSupplier.rejectionRate" class="form-control" step="0.01" />
-      </div>
-      <button (click)="updateSupplier()" class="btn btn-success">Save</button>
-      <button (click)="cancelEdit()" class="btn btn-secondary">Cancel</button>
-    </div>
+  <h2>Suppliers</h2>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    {{ errorMessage }}
   </div>
+
+  <!-- Create Supplier Form -->
+  <div class="create-form">
+    <h3>Add New Supplier</h3>
+    <form [formGroup]="newSupplierForm" (ngSubmit)="createSupplier()">
+      <div class="form-group">
+        <input type="text" formControlName="item" placeholder="Item" class="form-control" />
+        <div *ngIf="newSupplierForm.get('item')?.invalid && newSupplierForm.get('item')?.touched" class="alert alert-danger">
+          Item is required.
+        </div>
+      </div>
+      <div class="form-group">
+        <input type="number" formControlName="deliveryTime" placeholder="Delivery Time (days)" class="form-control" />
+        <div *ngIf="newSupplierForm.get('deliveryTime')?.invalid && newSupplierForm.get('deliveryTime')?.touched" class="alert alert-danger">
+          Delivery Time must be a non-negative number.
+        </div>
+      </div>
+      <div class="form-group">
+        <input type="number" formControlName="rejectionRate" placeholder="Rejection Rate (0-1)" class="form-control" step="0.01" />
+        <div *ngIf="newSupplierForm.get('rejectionRate')?.invalid && newSupplierForm.get('rejectionRate')?.touched" class="alert alert-danger">
+          Rejection Rate must be between 0 and 1.
+        </div>
+      </div>
+      <button type="submit" [disabled]="newSupplierForm.invalid" class="btn btn-primary">Add Supplier</button>
+    </form>
+  </div>
+
+  <!-- Suppliers Table -->
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Item</th>
+        <th>Delivery Time (days)</th>
+        <th>Rejection Rate</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let supplier of suppliers">
+        <td>{{ supplier.id }}</td>
+        <td>{{ supplier.item }}</td>
+        <td>{{ supplier.deliveryTime }}</td>
+        <td>{{ supplier.rejectionRate }}</td>
+        <td>
+          <button (click)="startEdit(supplier)" class="btn btn-warning btn-sm">Edit</button>
+          <button (click)="deleteSupplier(supplier.id!)" class="btn btn-danger btn-sm">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Edit Supplier Form -->
+  <div *ngIf="editSupplier && editSupplierForm" class="edit-form">
+    <h3>Edit Supplier</h3>
+    <form [formGroup]="editSupplierForm" (ngSubmit)="updateSupplier()">
+      <div class="form-group">
+        <input type="text" formControlName="item" class="form-control" />
+        <div *ngIf="editSupplierForm.get('item')?.invalid && editSupplierForm.get('item')?.touched" class="alert alert-danger">
+          Item is required.
+        </div>
+      </div>
+      <div class="form-group">
+        <input type="number" formControlName="deliveryTime" class="form-control" />
+        <div *ngIf="editSupplierForm.get('deliveryTime')?.invalid && editSupplierForm.get('deliveryTime')?.touched" class="alert alert-danger">
+          Delivery Time must be a non-negative number.
+        </div>
+      </div>
+      <div class="form-group">
+        <input type="number" formControlName="rejectionRate" class="form-control" step="0.01" />
+        <div *ngIf="editSupplierForm.get('rejectionRate')?.invalid && editSupplierForm.get('rejectionRate')?.touched" class="alert alert-danger">
+          Rejection Rate must be between 0 and 1.
+        </div>
+      </div>
+      <button type="submit" [disabled]="editSupplierForm.invalid" class="btn btn-success">Save</button>
+      <button (click)="cancelEdit()" class="btn btn-secondary">Cancel</button>
+    </form>
+  </div>
+
+  <!-- LLM Suggestion Section -->
+  <div class="llm-input">
+    <h3>Get Supplier Suggestion</h3>
+    <div class="form-group">
+      <input type="text" [(ngModel)]="llmPrompt" placeholder="e.g., Suggest a supplier for fast delivery" class="form-control" />
+    </div>
+    <button (click)="getLlmSuggestion()" class="btn btn-info">Get Suggestion</button>
+    <div *ngIf="llmResponse" class="alert alert-info">{{ llmResponse }}</div>
+  </div>
+</div>
