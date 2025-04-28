@@ -85,12 +85,14 @@
   </div>
 
   <!-- LLM Suggestion Section -->
-  <div class="llm-input">
+  <div class="llm-section">
     <h3>Get Supplier Suggestion</h3>
-    <div class="form-group">
-      <input type="text" [(ngModel)]="llmPrompt" placeholder="e.g., Suggest a supplier for fast delivery" class="form-control" />
+    <input [(ngModel)]="llmPrompt" type="text" placeholder="Enter your prompt (e.g., Suggest a supplier for fast delivery)" required maxlength="200" pattern="[A-Za-z0-9\\s,.!?]+">
+    <button (click)="getLlmSuggestion()" [disabled]="!llmPrompt || isLoading">Get Suggestion</button>
+    <div *ngIf="isLoading">Loading...</div>
+    <div *ngIf="errorMessage" class="error">{{ errorMessage }}</div>
+    <div *ngIf="llmResponse" class="llm-suggestion">
+      <p>{{ llmResponse }}</p>
     </div>
-    <button (click)="getLlmSuggestion()" class="btn btn-info">Get Suggestion</button>
-    <div *ngIf="llmResponse" class="alert alert-info">{{ llmResponse }}</div>
   </div>
 </div>

@@ -144,9 +144,22 @@ export class SupplierListComponent implements OnInit {
     this.errorMessage = '';
   }
 
+  isLoading: boolean = false;
+
   getLlmSuggestion(): void {
     if (!this.llmPrompt) {
       this.errorMessage = 'Please enter a prompt for the suggestion.';
+      return;
+    }
+
+    const promptPattern = /^[A-Za-z0-9\s,.!?]+$/;
+    if (!promptPattern.test(this.llmPrompt)) {
+      this.errorMessage = 'Prompt can only contain letters, numbers, spaces, and basic punctuation (,.!?)';
+      return;
+    }
+
+    if (this.llmPrompt.length > 200) {
+      this.errorMessage = 'Prompt cannot exceed 200 characters.';
       return;
     }
 
@@ -160,17 +173,18 @@ export class SupplierListComponent implements OnInit {
     console.log('LLM Prompt:', this.llmPrompt); // Debug: Log the LLM prompt
     console.log('Prompt sent to LLM:', fullPrompt);
 
+    this.isLoading = true;
     this.llmService.getSuggestion(fullPrompt).subscribe({
       next: (response: any) => {
-        console.log('Raw LLM response:', response);
         const suggestion = response.choices?.[0]?.message?.content || response.content || 'No suggestion available.';
-        console.log('Extracted suggestion:', suggestion); 
         this.llmResponse = suggestion;
         this.errorMessage = '';
+        this.isLoading = false;
       },
       error: (err: any) => {
         this.errorMessage = `Failed to get suggestion: ${err.message}`;
         this.llmResponse = '';
+        this.isLoading = false;
       }
     });
   }
