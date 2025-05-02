@@ -1,98 +1,201 @@
 <div class="container">
-  <h2>Suppliers</h2>
+  <h2>Supplier Management</h2>
 
   <!-- Error Message -->
-  <div *ngIf="errorMessage" class="alert alert-danger">
+  <div *ngIf="errorMessage" class="error-message">
     {{ errorMessage }}
   </div>
 
-  <!-- Create Supplier Form -->
-  <div class="create-form">
+  <!-- Add Supplier Form -->
+  <div class="form-container">
     <h3>Add New Supplier</h3>
     <form [formGroup]="newSupplierForm" (ngSubmit)="createSupplier()">
       <div class="form-group">
-        <input type="text" formControlName="item" placeholder="Item" class="form-control" />
-        <div *ngIf="newSupplierForm.get('item')?.invalid && newSupplierForm.get('item')?.touched" class="alert alert-danger">
-          Item is required.
+        <label for="new-item">Item:</label>
+        <input
+          id="new-item"
+          type="text"
+          formControlName="item"
+          placeholder="Enter item"
+        />
+        <div
+          *ngIf="newSupplierForm.get('item')?.invalid && (newSupplierForm.get('item')?.dirty || newSupplierForm.get('item')?.touched)"
+          class="warning-message"
+        >
+          <div *ngIf="newSupplierForm.get('item')?.errors?.['required']">
+            Item is required
+          </div>
+          <div *ngIf="newSupplierForm.get('item')?.errors?.['maxlength']">
+            Item must be less than 50 characters
+          </div>
         </div>
       </div>
       <div class="form-group">
-        <input type="number" formControlName="deliveryTime" placeholder="Delivery Time (days)" class="form-control" />
-        <div *ngIf="newSupplierForm.get('deliveryTime')?.invalid && newSupplierForm.get('deliveryTime')?.touched" class="alert alert-danger">
-          Delivery Time must be a non-negative number.
+        <label for="new-deliveryTime">Delivery Time (days):</label>
+        <input
+          id="new-deliveryTime"
+          type="number"
+          formControlName="deliveryTime"
+          placeholder="Enter delivery time"
+        />
+        <div
+          *ngIf="newSupplierForm.get('deliveryTime')?.invalid && (newSupplierForm.get('deliveryTime')?.dirty || newSupplierForm.get('deliveryTime')?.touched)"
+          class="warning-message"
+        >
+          <div *ngIf="newSupplierForm.get('deliveryTime')?.errors?.['required']">
+            Delivery Time is required
+          </div>
+          <div *ngIf="newSupplierForm.get('deliveryTime')?.errors?.['min']">
+            Delivery Time must be a positive number
+          </div>
         </div>
       </div>
       <div class="form-group">
-        <input type="number" formControlName="rejectionRate" placeholder="Rejection Rate (0-1)" class="form-control" step="0.01" />
-        <div *ngIf="newSupplierForm.get('rejectionRate')?.invalid && newSupplierForm.get('rejectionRate')?.touched" class="alert alert-danger">
-          Rejection Rate must be between 0 and 1.
+        <label for="new-rejectionRate">Rejection Rate (0-1):</label>
+        <input
+          id="new-rejectionRate"
+          type="number"
+          step="0.01"
+          formControlName="rejectionRate"
+          placeholder="Enter rejection rate"
+        />
+        <div
+          *ngIf="newSupplierForm.get('rejectionRate')?.invalid && (newSupplierForm.get('rejectionRate')?.dirty || newSupplierForm.get('rejectionRate')?.touched)"
+          class="warning-message"
+        >
+          <div *ngIf="newSupplierForm.get('rejectionRate')?.errors?.['required']">
+            Rejection Rate is required
+          </div>
+          <div *ngIf="newSupplierForm.get('rejectionRate')?.errors?.['min']">
+            Rejection Rate must be non-negative
+          </div>
+          <div *ngIf="newSupplierForm.get('rejectionRate')?.errors?.['max']">
+            Rejection Rate must be at most 1
+          </div>
         </div>
       </div>
-      <button type="submit" [disabled]="newSupplierForm.invalid" class="btn btn-primary">Add Supplier</button>
+      <button type="submit" [disabled]="newSupplierForm.invalid">Add Supplier</button>
     </form>
   </div>
 
-  <!-- Suppliers Table -->
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Item</th>
-        <th>Delivery Time (days)</th>
-        <th>Rejection Rate</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let supplier of suppliers">
-        <td>{{ supplier.id }}</td>
-        <td>{{ supplier.item }}</td>
-        <td>{{ supplier.deliveryTime }}</td>
-        <td>{{ supplier.rejectionRate }}</td>
-        <td>
-          <button (click)="startEdit(supplier)" class="btn btn-warning btn-sm">Edit</button>
-          <button (click)="deleteSupplier(supplier.id!)" class="btn btn-danger btn-sm">Delete</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
   <!-- Edit Supplier Form -->
-  <div *ngIf="editSupplier && editSupplierForm" class="edit-form">
+  <div class="form-container" *ngIf="editSupplier && editSupplierForm">
     <h3>Edit Supplier</h3>
     <form [formGroup]="editSupplierForm" (ngSubmit)="updateSupplier()">
       <div class="form-group">
-        <input type="text" formControlName="item" class="form-control" />
-        <div *ngIf="editSupplierForm.get('item')?.invalid && editSupplierForm.get('item')?.touched" class="alert alert-danger">
-          Item is required.
+        <label for="edit-item">Item:</label>
+        <input
+          id="edit-item"
+          type="text"
+          formControlName="item"
+          placeholder="Enter item"
+        />
+        <div
+          *ngIf="editSupplierForm?.get('item')?.invalid && (editSupplierForm?.get('item')?.dirty || editSupplierForm?.get('item')?.touched)"
+          class="warning-message"
+        >
+          <div *ngIf="editSupplierForm?.get('item')?.errors?.['required']">
+            Item is required
+          </div>
+          <div *ngIf="editSupplierForm?.get('item')?.errors?.['maxlength']">
+            Item must be less than 50 characters
+          </div>
         </div>
       </div>
       <div class="form-group">
-        <input type="number" formControlName="deliveryTime" class="form-control" />
-        <div *ngIf="editSupplierForm.get('deliveryTime')?.invalid && editSupplierForm.get('deliveryTime')?.touched" class="alert alert-danger">
-          Delivery Time must be a non-negative number.
+        <label for="edit-deliveryTime">Delivery Time (days):</label>
+        <input
+          id="edit-deliveryTime"
+          type="number"
+          formControlName="deliveryTime"
+          placeholder="Enter delivery time"
+        />
+        <div
+          *ngIf="editSupplierForm?.get('deliveryTime')?.invalid && (editSupplierForm?.get('deliveryTime')?.dirty || editSupplierForm?.get('deliveryTime')?.touched)"
+          class="warning-message"
+        >
+          <div *ngIf="editSupplierForm?.get('deliveryTime')?.errors?.['required']">
+            Delivery Time is required
+          </div>
+          <div *ngIf="editSupplierForm?.get('deliveryTime')?.errors?.['min']">
+            Delivery Time must be a positive number
+          </div>
         </div>
       </div>
       <div class="form-group">
-        <input type="number" formControlName="rejectionRate" class="form-control" step="0.01" />
-        <div *ngIf="editSupplierForm.get('rejectionRate')?.invalid && editSupplierForm.get('rejectionRate')?.touched" class="alert alert-danger">
-          Rejection Rate must be between 0 and 1.
+        <label for="edit-rejectionRate">Rejection Rate (0-1):</label>
+        <input
+          id="edit-rejectionRate"
+          type="number"
+          step="0.01"
+          formControlName="rejectionRate"
+          placeholder="Enter rejection rate"
+        />
+        <div
+          *ngIf="editSupplierForm?.get('rejectionRate')?.invalid && (editSupplierForm?.get('rejectionRate')?.dirty || editSupplierForm?.get('rejectionRate')?.touched)"
+          class="warning-message"
+        >
+          <div *ngIf="editSupplierForm?.get('rejectionRate')?.errors?.['required']">
+            Rejection Rate is required
+          </div>
+          <div *ngIf="editSupplierForm?.get('rejectionRate')?.errors?.['min']">
+            Rejection Rate must be non-negative
+          </div>
+          <div *ngIf="editSupplierForm?.get('rejectionRate')?.errors?.['max']">
+            Rejection Rate must be at most 1
+          </div>
         </div>
       </div>
-      <button type="submit" [disabled]="editSupplierForm.invalid" class="btn btn-success">Save</button>
-      <button (click)="cancelEdit()" class="btn btn-secondary">Cancel</button>
+      <button type="submit" [disabled]="editSupplierForm.invalid">Update Supplier</button>
+      <button type="button" (click)="cancelEdit()">Cancel</button>
     </form>
   </div>
 
-  <!-- LLM Suggestion Section -->
+  <!-- Supplier List -->
+  <div class="supplier-list">
+    <h3>Suppliers</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Item</th>
+          <th>Delivery Time (days)</th>
+          <th>Rejection Rate</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let supplier of suppliers">
+          <td>{{ supplier.id }}</td>
+          <td>{{ supplier.item }}</td>
+          <td>{{ supplier.deliveryTime }}</td>
+          <td>{{ supplier.rejectionRate }}</td>
+          <td>
+            <button (click)="startEdit(supplier)">Edit</button>
+            <button (click)="deleteSupplier(supplier.id!)">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- LLM Suggestion -->
   <div class="llm-section">
     <h3>Get Supplier Suggestion</h3>
-    <input [(ngModel)]="llmPrompt" type="text" placeholder="Enter your prompt (e.g., Suggest a supplier for fast delivery)" required maxlength="200" pattern="[A-Za-z0-9\\s,.!?]+">
-    <button (click)="getLlmSuggestion()" [disabled]="!llmPrompt || isLoading">Get Suggestion</button>
-    <div *ngIf="isLoading">Loading...</div>
-    <div *ngIf="errorMessage" class="error">{{ errorMessage }}</div>
-    <div *ngIf="llmResponse" class="llm-suggestion">
-      <p>{{ llmResponse }}</p>
+    <div class="form-group">
+      <label for="llm-prompt">Prompt:</label>
+      <input
+        id="llm-prompt"
+        type="text"
+        [(ngModel)]="llmPrompt"
+        placeholder="Enter prompt (e.g., Suggest a supplier for fast delivery)"
+      />
+    </div>
+    <button (click)="getLlmSuggestion()" [disabled]="isLoading">
+      {{ isLoading ? 'Loading...' : 'Get Suggestion' }}
+    </button>
+    <div *ngIf="llmResponse" class="llm-response">
+      <strong>Suggestion:</strong> {{ llmResponse }}
     </div>
   </div>
 </div>

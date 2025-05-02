@@ -4,16 +4,23 @@ import com.example.evolvingui.dto.SupplierDTO;
 import com.example.evolvingui.exception.SupplierNotFoundException;
 import com.example.evolvingui.exception.SupplierValidationException;
 import com.example.evolvingui.service.SupplierService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 @CrossOrigin(origins = "http://localhost:4200")
 @RestController
 @RequestMapping("/api/suppliers")
 public class SupplierController {
 
+    private static final Logger logger = LoggerFactory.getLogger(SupplierController.class);
     private final SupplierService supplierService;
 
     public SupplierController(SupplierService supplierService) {
@@ -22,43 +29,71 @@ public class SupplierController {
 
     @GetMapping
     public List<SupplierDTO> getAllSuppliers() {
+        logger.info("Fetching all suppliers");
         return supplierService.getAllSuppliers();
     }
 
     @GetMapping("/{id}")
     public SupplierDTO getSupplierById(@PathVariable Long id) {
+        if (id <= 0) {
+            logger.warn("Invalid supplier ID: {}", id);
+            throw new IllegalArgumentException("Supplier ID must be a positive integer");
+        }
+        logger.info("Fetching supplier with ID: {}", id);
         return supplierService.getSupplierById(id);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public SupplierDTO createSupplier(@RequestBody SupplierDTO supplierDTO) {
+    public SupplierDTO createSupplier(@Valid @RequestBody SupplierDTO supplierDTO) {
+        logger.info("Creating new supplier: {}", supplierDTO);
         return supplierService.createSupplier(supplierDTO);
     }
 
     @PutMapping("/{id}")
-    public SupplierDTO updateSupplier(@PathVariable Long id, @RequestBody SupplierDTO supplierDTO) {
+    public SupplierDTO updateSupplier(@PathVariable Long id, @Valid @RequestBody SupplierDTO supplierDTO) {
+        if (id <= 0) {
+            logger.warn("Invalid supplier ID: {}", id);
+            throw new IllegalArgumentException("Supplier ID must be a positive integer");
+        }
+        logger.info("Updating supplier with ID: {}", id);
         return supplierService.updateSupplier(id, supplierDTO);
     }
 
     @PatchMapping("/{id}")
     public SupplierDTO partialUpdateSupplier(@PathVariable Long id, @RequestBody SupplierDTO supplierDTO) {
+        if (id <= 0) {
+            logger.warn("Invalid supplier ID: {}", id);
+            throw new IllegalArgumentException("Supplier ID must be a positive integer");
+        }
+        logger.info("Partially updating supplier with ID: {}", id);
         return supplierService.partialUpdateSupplier(id, supplierDTO);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteSupplier(@PathVariable Long id) {
+        if (id <= 0) {
+            logger.warn("Invalid supplier ID: {}", id);
+            throw new IllegalArgumentException("Supplier ID must be a positive integer");
+        }
+        logger.info("Deleting supplier with ID: {}", id);
         supplierService.deleteSupplier(id);
     }
 
     @ExceptionHandler(SupplierNotFoundException.class)
-    public ResponseEntity<String> handleSupplierNotFoundException(SupplierNotFoundException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    public ResponseEntity<Map<String, String>> handleSupplierNotFoundException(SupplierNotFoundException ex) {
+        logger.error("Supplier not found: {}", ex.getMessage());
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("message", ex.getMessage());
+        return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(SupplierValidationException.class)
-    public ResponseEntity<String> handleSupplierValidationException(SupplierValidationException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    public ResponseEntity<Map<String, String>> handleSupplierValidationException(SupplierValidationException ex) {
+        logger.error("Validation error: {}", ex.getMessage());
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("message", ex.getMessage());
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 }

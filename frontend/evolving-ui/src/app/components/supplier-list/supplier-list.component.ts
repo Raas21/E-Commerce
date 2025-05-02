@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 export class SupplierListComponent implements OnInit {
   suppliers: Supplier[] = [];
   newSupplierForm: FormGroup;
-  editSupplierForm: FormGroup | null = null;
+  editSupplierForm: FormGroup | null = null; // Keep as nullable, but we'll guard in the template
   editSupplier: Supplier | null = null;
   errorMessage: string = '';
   llmPrompt: string = '';
@@ -28,8 +28,8 @@ export class SupplierListComponent implements OnInit {
     private fb: FormBuilder
   ) {
     this.newSupplierForm = this.fb.group({
-      item: ['', Validators.required],
-      deliveryTime: [0, [Validators.required, Validators.min(0)]],
+      item: ['', [Validators.required, Validators.maxLength(50)]],
+      deliveryTime: [0, [Validators.required, Validators.min(1)]],
       rejectionRate: [0, [Validators.required, Validators.min(0), Validators.max(1)]]
     });
   }
@@ -42,6 +42,7 @@ export class SupplierListComponent implements OnInit {
     this.supplierService.getAllSuppliers().subscribe({
       next: (data: Supplier[]) => {
         this.suppliers = data;
+        this.errorMessage = '';
       },
       error: (err: any) => {
         this.errorMessage = 'Failed to load suppliers: ' + err.message;
@@ -51,7 +52,7 @@ export class SupplierListComponent implements OnInit {
 
   createSupplier(): void {
     if (this.newSupplierForm.invalid) {
-      this.errorMessage = 'Please fill in all required fields correctly.';
+      this.errorMessage = 'Please fill in all required fields correctly: ' + this.getFormErrors(this.newSupplierForm);
       return;
     }
     const newSupplier: Supplier = this.newSupplierForm.value;
@@ -62,7 +63,7 @@ export class SupplierListComponent implements OnInit {
         this.errorMessage = '';
       },
       error: (err: any) => {
-        this.errorMessage = `Failed to create supplier: ${err.status} - ${err.statusText} - ${err.message || err.error || 'Unknown Error'}`;
+        this.errorMessage = `Failed to create supplier: ${err.message}`;
       }
     });
   }
@@ -70,8 +71,8 @@ export class SupplierListComponent implements OnInit {
   startEdit(supplier: Supplier): void {
     this.editSupplier = { ...supplier };
     this.editSupplierForm = this.fb.group({
-      item: [supplier.item, Validators.required],
-      deliveryTime: [supplier.deliveryTime, [Validators.required, Validators.min(0)]],
+      item: [supplier.item, [Validators.required, Validators.maxLength(50)]],
+      deliveryTime: [supplier.deliveryTime, [Validators.required, Validators.min(1)]],
       rejectionRate: [supplier.rejectionRate, [Validators.required, Validators.min(0), Validators.max(1)]]
     });
   }
@@ -170,7 +171,7 @@ export class SupplierListComponent implements OnInit {
 
     const supplierData = this.suppliers.map(s => `ID: ${s.id}, item: ${s.item}, Delivery Time: ${s.deliveryTime} days, Rejection Rate: ${s.rejectionRate}`).join('\n');
     const fullPrompt = `Supplier data:\n${supplierData}\n\n${this.llmPrompt} dont give reasoning, just give me the suggestion`;
-    console.log('LLM Prompt:', this.llmPrompt); // Debug: Log the LLM prompt
+    console.log('LLM Prompt:', this.llmPrompt);
     console.log('Prompt sent to LLM:', fullPrompt);
 
     this.isLoading = true;
@@ -187,5 +188,37 @@ export class SupplierListComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  private getFormErrors(form: FormGroup): string {
+    const messages: string[] = [];
+    Object.keys(form.controls).forEach(field => {
+      const control = form.get(field);
+      if (control?.invalid) {
+        const errors = control.errors;
+        if (field === 'item') {
+          if (errors?.['required']) {
+            messages.push('Item is required');
+          } else if (errors?.['maxlength']) {
+            messages.push('Item must be less than 50 characters');
+          }
+        } else if (field === 'deliveryTime') {
+          if (errors?.['required']) {
+            messages.push('Delivery Time is required');
+          } else if (errors?.['min']) {
+            messages.push('Delivery Time must be a positive number');
+          }
+        } else if (field === 'rejectionRate') {
+          if (errors?.['required']) {
+            messages.push('Rejection Rate is required');
+          } else if (errors?.['min']) {
+            messages.push('Rejection Rate must be non-negative');
+          } else if (errors?.['max']) {
+            messages.push('Rejection Rate must be at most 1');
+          }
+        }
+      }
+    });
+    return messages.join(', ');
   }
 }

@@ -49,16 +49,21 @@ export class SupplierService {
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
-    let errorMessage = 'An error occurred';
-    if (error.error instanceof ErrorEvent) {
-      errorMessage = `Client-side error: ${error.error.message}`;
-    } else {
-      errorMessage = `Server-side error: ${error.status} - ${error.message}`;
-      if (error.error) {
-        errorMessage += ` - ${error.error}`;
-      }
+    let errorMessage = 'An unexpected error occurred. Please try again later.';
+
+    if (error.error && typeof error.error === 'object' && error.error.message) {
+      errorMessage = error.error.message; 
+    } else if (error.error instanceof ErrorEvent) {
+      errorMessage = error.error.message;
+    } else if (error.status === 0) {
+      errorMessage = 'Unable to connect to the server. Please check your network connection.';
+    } else if (error.status === 404) {
+      errorMessage = 'Resource not found. The server might be down or the supplier does not exist.';
+    } else if (error.status >= 500) {
+      errorMessage = 'A server error occurred. Please try again later.';
     }
-    console.error(errorMessage);
+
+    console.error('Error occurred:', error); 
     return throwError(() => new Error(errorMessage));
   }
 }
