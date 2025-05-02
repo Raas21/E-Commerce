@@ -2,14 +2,15 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 
 @Injectable({
   providedIn: 'root'
 })
 export class LlmService {
-  private apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  private apiKey = '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'; 
+  private apiUrl = environment.groqApiUrl;
+  private apiKey = environment.groqApiKey; 
 
   constructor(private http: HttpClient) {}
 
