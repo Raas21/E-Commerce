@@ -15,12 +15,23 @@ import { FormsModule } from '@angular/forms';
 })
 export class SupplierListComponent implements OnInit {
   suppliers: Supplier[] = [];
+  filteredSuppliers: Supplier[] = [];
   newSupplierForm: FormGroup;
-  editSupplierForm: FormGroup | null = null; // Keep as nullable, but we'll guard in the template
+  editSupplierForm: FormGroup | null = null;
   editSupplier: Supplier | null = null;
   errorMessage: string = '';
   llmPrompt: string = '';
   llmResponse: string = '';
+  isLoading: boolean = false;
+
+  // Filter properties
+  filterItem: string = '';
+  filterDeliveryTime: number | null = null;
+  filterRejectionRate: number | null = null;
+
+  // Sort properties
+  sortColumn: keyof Supplier | '' = '';
+  sortDirection: 'asc' | 'desc' = 'asc';
 
   constructor(
     private supplierService: SupplierService,
@@ -42,6 +53,7 @@ export class SupplierListComponent implements OnInit {
     this.supplierService.getAllSuppliers().subscribe({
       next: (data: Supplier[]) => {
         this.suppliers = data;
+        this.applyFilters();
         this.errorMessage = '';
       },
       error: (err: any) => {
@@ -60,6 +72,7 @@ export class SupplierListComponent implements OnInit {
       next: (supplier: Supplier) => {
         this.suppliers.push(supplier);
         this.newSupplierForm.reset({ item: '', deliveryTime: 0, rejectionRate: 0 });
+        this.applyFilters();
         this.errorMessage = '';
       },
       error: (err: any) => {
@@ -112,6 +125,7 @@ export class SupplierListComponent implements OnInit {
           }
           this.editSupplier = null;
           this.editSupplierForm = null;
+          this.applyFilters();
           this.errorMessage = '';
         },
         error: (err: any) => {
@@ -121,6 +135,7 @@ export class SupplierListComponent implements OnInit {
     } else {
       this.editSupplier = null;
       this.editSupplierForm = null;
+      this.applyFilters();
       this.errorMessage = '';
     }
   }
@@ -130,6 +145,7 @@ export class SupplierListComponent implements OnInit {
       this.supplierService.deleteSupplier(id).subscribe({
         next: () => {
           this.suppliers = this.suppliers.filter(s => s.id !== id);
+          this.applyFilters();
           this.errorMessage = '';
         },
         error: (err: any) => {
@@ -144,8 +160,6 @@ export class SupplierListComponent implements OnInit {
     this.editSupplierForm = null;
     this.errorMessage = '';
   }
-
-  isLoading: boolean = false;
 
   getLlmSuggestion(): void {
     if (!this.llmPrompt) {
@@ -169,8 +183,27 @@ export class SupplierListComponent implements OnInit {
       return;
     }
 
-    const supplierData = this.suppliers.map(s => `ID: ${s.id}, item: ${s.item}, Delivery Time: ${s.deliveryTime} days, Rejection Rate: ${s.rejectionRate}`).join('\n');
-    const fullPrompt = `Supplier data:\n${supplierData}\n\n${this.llmPrompt} dont give reasoning, just give me the suggestion`;
+    // Build filter criteria for the prompt
+    const filterCriteria: string[] = [];
+    if (this.filterItem) {
+      filterCriteria.push(`item contains "${this.filterItem}"`);
+    }
+    if (this.filterDeliveryTime !== null && this.filterDeliveryTime !== undefined) {
+      filterCriteria.push(`delivery time <= ${this.filterDeliveryTime} days`);
+    }
+    if (this.filterRejectionRate !== null && this.filterRejectionRate !== undefined) {
+      filterCriteria.push(`rejection rate <= ${this.filterRejectionRate}`);
+    }
+    const filterText = filterCriteria.length > 0
+      ? `Filtered by: ${filterCriteria.join(', ')}\n`
+      : '';
+
+    // Use filteredSuppliers instead of suppliers to provide context
+    const supplierData = this.filteredSuppliers.map(s => 
+      `ID: ${s.id}, item: ${s.item}, Delivery Time: ${s.deliveryTime} days, Rejection Rate: ${s.rejectionRate}`
+    ).join('\n');
+    
+    const fullPrompt = `Supplier data:\n${supplierData}\n\n${filterText}${this.llmPrompt}\nDon't give reasoning, just give me the suggestion`;
     console.log('LLM Prompt:', this.llmPrompt);
     console.log('Prompt sent to LLM:', fullPrompt);
 
@@ -188,6 +221,59 @@ export class SupplierListComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  sort(column: keyof Supplier): void {
+    if (this.sortColumn === column) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortColumn = column;
+      this.sortDirection = 'asc';
+    }
+
+    this.filteredSuppliers.sort((a, b) => {
+      const valueA = a[column];
+      const valueB = b[column];
+
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return this.sortDirection === 'asc'
+          ? valueA.localeCompare(valueB)
+          : valueB.localeCompare(valueA);
+      } else {
+        return this.sortDirection === 'asc'
+          ? (valueA as number) - (valueB as number)
+          : (valueB as number) - (valueA as number);
+      }
+    });
+  }
+
+  applyFilters(): void {
+    let filtered = [...this.suppliers];
+
+    if (this.filterItem) {
+      const filterValue = this.filterItem.toLowerCase().trim();
+      filtered = filtered.filter(supplier =>
+        supplier.item.toLowerCase().includes(filterValue)
+      );
+    }
+
+    if (this.filterDeliveryTime !== null && this.filterDeliveryTime !== undefined) {
+      filtered = filtered.filter(supplier =>
+        supplier.deliveryTime <= this.filterDeliveryTime!
+      );
+    }
+
+    if (this.filterRejectionRate !== null && this.filterRejectionRate !== undefined) {
+      filtered = filtered.filter(supplier =>
+        supplier.rejectionRate <= this.filterRejectionRate!
+      );
+    }
+
+    this.filteredSuppliers = filtered;
+
+    if (this.sortColumn) {
+      this.sort(this.sortColumn);
+    }
   }
 
   private getFormErrors(form: FormGroup): string {

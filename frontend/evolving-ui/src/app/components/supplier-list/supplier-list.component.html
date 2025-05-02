@@ -91,13 +91,13 @@
           placeholder="Enter item"
         />
         <div
-          *ngIf="editSupplierForm?.get('item')?.invalid && (editSupplierForm?.get('item')?.dirty || editSupplierForm?.get('item')?.touched)"
+          *ngIf="editSupplierForm!.get('item')?.invalid && (editSupplierForm!.get('item')?.dirty || editSupplierForm!.get('item')?.touched)"
           class="warning-message"
         >
-          <div *ngIf="editSupplierForm?.get('item')?.errors?.['required']">
+          <div *ngIf="editSupplierForm!.get('item')?.errors?.['required']">
             Item is required
           </div>
-          <div *ngIf="editSupplierForm?.get('item')?.errors?.['maxlength']">
+          <div *ngIf="editSupplierForm!.get('item')?.errors?.['maxlength']">
             Item must be less than 50 characters
           </div>
         </div>
@@ -111,13 +111,13 @@
           placeholder="Enter delivery time"
         />
         <div
-          *ngIf="editSupplierForm?.get('deliveryTime')?.invalid && (editSupplierForm?.get('deliveryTime')?.dirty || editSupplierForm?.get('deliveryTime')?.touched)"
+          *ngIf="editSupplierForm!.get('deliveryTime')?.invalid && (editSupplierForm!.get('deliveryTime')?.dirty || editSupplierForm!.get('deliveryTime')?.touched)"
           class="warning-message"
         >
-          <div *ngIf="editSupplierForm?.get('deliveryTime')?.errors?.['required']">
+          <div *ngIf="editSupplierForm!.get('deliveryTime')?.errors?.['required']">
             Delivery Time is required
           </div>
-          <div *ngIf="editSupplierForm?.get('deliveryTime')?.errors?.['min']">
+          <div *ngIf="editSupplierForm!.get('deliveryTime')?.errors?.['min']">
             Delivery Time must be a positive number
           </div>
         </div>
@@ -132,16 +132,16 @@
           placeholder="Enter rejection rate"
         />
         <div
-          *ngIf="editSupplierForm?.get('rejectionRate')?.invalid && (editSupplierForm?.get('rejectionRate')?.dirty || editSupplierForm?.get('rejectionRate')?.touched)"
+          *ngIf="editSupplierForm!.get('rejectionRate')?.invalid && (editSupplierForm!.get('rejectionRate')?.dirty || editSupplierForm!.get('rejectionRate')?.touched)"
           class="warning-message"
         >
-          <div *ngIf="editSupplierForm?.get('rejectionRate')?.errors?.['required']">
+          <div *ngIf="editSupplierForm!.get('rejectionRate')?.errors?.['required']">
             Rejection Rate is required
           </div>
-          <div *ngIf="editSupplierForm?.get('rejectionRate')?.errors?.['min']">
+          <div *ngIf="editSupplierForm!.get('rejectionRate')?.errors?.['min']">
             Rejection Rate must be non-negative
           </div>
-          <div *ngIf="editSupplierForm?.get('rejectionRate')?.errors?.['max']">
+          <div *ngIf="editSupplierForm!.get('rejectionRate')?.errors?.['max']">
             Rejection Rate must be at most 1
           </div>
         </div>
@@ -154,18 +154,75 @@
   <!-- Supplier List -->
   <div class="supplier-list">
     <h3>Suppliers</h3>
+
+    <!-- Filter Controls -->
+    <div class="filter-controls">
+      <div class="filter-group">
+        <label for="filter-item">Filter Item:</label>
+        <input
+          id="filter-item"
+          type="text"
+          [(ngModel)]="filterItem"
+          (ngModelChange)="applyFilters()"
+          placeholder="Filter by item"
+        />
+      </div>
+      <div class="filter-group">
+        <label for="filter-deliveryTime">Max Delivery Time (days):</label>
+        <input
+          id="filter-deliveryTime"
+          type="number"
+          [(ngModel)]="filterDeliveryTime"
+          (ngModelChange)="applyFilters()"
+          placeholder="Max delivery time"
+        />
+      </div>
+      <div class="filter-group">
+        <label for="filter-rejectionRate">Max Rejection Rate (0-1):</label>
+        <input
+          id="filter-rejectionRate"
+          type="number"
+          step="0.01"
+          [(ngModel)]="filterRejectionRate"
+          (ngModelChange)="applyFilters()"
+          placeholder="Max rejection rate"
+        />
+      </div>
+    </div>
+
+    <!-- Supplier Table -->
     <table>
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Item</th>
-          <th>Delivery Time (days)</th>
-          <th>Rejection Rate</th>
+          <th (click)="sort('id')">
+            ID
+            <span class="sort-indicator">
+              {{ sortColumn === 'id' ? (sortDirection === 'asc' ? '↑' : '↓') : '' }}
+            </span>
+          </th>
+          <th (click)="sort('item')">
+            Item
+            <span class="sort-indicator">
+              {{ sortColumn === 'item' ? (sortDirection === 'asc' ? '↑' : '↓') : '' }}
+            </span>
+          </th>
+          <th (click)="sort('deliveryTime')">
+            Delivery Time (days)
+            <span class="sort-indicator">
+              {{ sortColumn === 'deliveryTime' ? (sortDirection === 'asc' ? '↑' : '↓') : '' }}
+            </span>
+          </th>
+          <th (click)="sort('rejectionRate')">
+            Rejection Rate
+            <span class="sort-indicator">
+              {{ sortColumn === 'rejectionRate' ? (sortDirection === 'asc' ? '↑' : '↓') : '' }}
+            </span>
+          </th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let supplier of suppliers">
+        <tr *ngFor="let supplier of filteredSuppliers">
           <td>{{ supplier.id }}</td>
           <td>{{ supplier.item }}</td>
           <td>{{ supplier.deliveryTime }}</td>
@@ -191,8 +248,10 @@
         placeholder="Enter prompt (e.g., Suggest a supplier for fast delivery)"
       />
     </div>
-    <button (click)="getLlmSuggestion()" [disabled]="isLoading">
-      {{ isLoading ? 'Loading...' : 'Get Suggestion' }}
+    <button (click)="getLlmSuggestion()" [disabled]="isLoading" class="suggestion-button">
+      <span *ngIf="!isLoading">Get Suggestion</span>
+      <span *ngIf="isLoading" class="spinner"></span>
+      <span *ngIf="isLoading">Loading...</span>
     </button>
     <div *ngIf="llmResponse" class="llm-response">
       <strong>Suggestion:</strong> {{ llmResponse }}

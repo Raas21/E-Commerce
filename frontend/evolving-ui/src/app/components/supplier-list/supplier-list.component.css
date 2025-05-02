@@ -78,6 +78,40 @@ button:disabled {
   margin-bottom: 30px;
 }
 
+.filter-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #555;
+}
+
+.filter-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 0.95em;
+}
+
+.filter-group input:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
 .supplier-list table {
   width: 100%;
   border-collapse: collapse;
@@ -99,6 +133,12 @@ button:disabled {
   background-color: #007bff;
   color: white;
   font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+}
+
+.supplier-list th:hover {
+  background-color: #0056b3;
 }
 
 .supplier-list td {
@@ -123,6 +163,11 @@ button:disabled {
   background-color: #b02a37;
 }
 
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 0.8em;
+}
+
 .error-message {
   color: #dc3545;
   background-color: #f8d7da;
@@ -134,7 +179,7 @@ button:disabled {
 }
 
 .warning-message {
-  color: #ff8c00 !important; /* Increase specificity with !important */
+  color: #ff8c00 !important;
   font-size: 0.9em;
   margin-top: 5px;
   font-style: italic;
@@ -155,4 +200,26 @@ button:disabled {
   border: 1px solid #ced4da;
   border-radius: 4px;
   font-size: 0.95em;
+}
+
+.suggestion-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px; /* Space between spinner and text */
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
