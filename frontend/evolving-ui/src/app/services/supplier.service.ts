@@ -13,8 +13,8 @@ export class SupplierService {
 
   constructor(private http: HttpClient) {}
 
-  getAllSuppliers(): Observable<Supplier[]> {
-    return this.http.get<Supplier[]>(this.apiUrl).pipe(
+  getAllSuppliers(page: number = 0, size: number = 10): Observable<{ content: Supplier[], totalElements: number, totalPages: number }> {
+    return this.http.get<{ content: Supplier[], totalElements: number, totalPages: number }>(`${this.apiUrl}?page=${page}&size=${size}`).pipe(
       catchError(this.handleError)
     );
   }

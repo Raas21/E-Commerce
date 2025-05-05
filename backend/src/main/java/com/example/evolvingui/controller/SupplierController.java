@@ -6,6 +6,9 @@ import com.example.evolvingui.exception.SupplierValidationException;
 import com.example.evolvingui.service.SupplierService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,9 +31,13 @@ public class SupplierController {
     }
 
     @GetMapping
-    public List<SupplierDTO> getAllSuppliers() {
-        logger.info("Fetching all suppliers");
-        return supplierService.getAllSuppliers();
+    public ResponseEntity<Page<SupplierDTO>> getAllSuppliers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        logger.info("Fetching suppliers with page: {} and size: {}", page, size);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<SupplierDTO> supplierPage = supplierService.getAllSuppliers(pageable);
+        return ResponseEntity.ok(supplierPage);
     }
 
     @GetMapping("/{id}")

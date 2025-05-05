@@ -33,6 +33,18 @@ export class SupplierListComponent implements OnInit {
   sortColumn: keyof Supplier | '' = '';
   sortDirection: 'asc' | 'desc' = 'asc';
 
+  // Pagination properties
+  currentPage: number = 0;
+  pageSize: number = 10;
+  totalElements: number = 0;
+  totalPages: number = 0;
+
+  // Voice input properties
+  isRecording: boolean = false;
+  speechRecognition: any; // SpeechRecognition instance
+  transcribedText: string = ''; // Live transcribed text
+  hasTranscribed: boolean = false; // Whether transcription has completed
+
   constructor(
     private supplierService: SupplierService,
     private llmService: LlmService,
@@ -43,16 +55,101 @@ export class SupplierListComponent implements OnInit {
       deliveryTime: [0, [Validators.required, Validators.min(1)]],
       rejectionRate: [0, [Validators.required, Validators.min(0), Validators.max(1)]]
     });
+
+    this.initializeSpeechRecognition();
   }
 
   ngOnInit(): void {
     this.loadSuppliers();
   }
 
+  initializeSpeechRecognition(): void {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      this.errorMessage = 'Speech recognition is not supported in this browser. Please use a modern browser like Chrome or Edge.';
+      return;
+    }
+
+    this.speechRecognition = new SpeechRecognition();
+    this.speechRecognition.continuous = false;
+    this.speechRecognition.interimResults = true; // Enable live transcription
+    this.speechRecognition.lang = 'en-US';
+
+    this.speechRecognition.onresult = (event: any) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      this.transcribedText = finalTranscript + interimTranscript;
+      this.hasTranscribed = !!finalTranscript; // Set to true when final transcript is available
+    };
+
+    this.speechRecognition.onerror = (event: any) => {
+      this.isRecording = false;
+      this.hasTranscribed = false;
+      if (event.error === 'no-speech') {
+        this.errorMessage = 'No speech detected. Please try again.';
+      } else if (event.error === 'not-allowed') {
+        this.errorMessage = 'Microphone access denied. Please allow microphone access to use voice input.';
+      } else {
+        this.errorMessage = `Speech recognition error: ${event.error}`;
+      }
+    };
+
+    this.speechRecognition.onend = () => {
+      this.isRecording = false;
+    };
+  }
+
+  toggleVoiceInput(): void {
+    if (!this.speechRecognition) {
+      this.errorMessage = 'Speech recognition is not supported in this browser.';
+      return;
+    }
+
+    if (this.isRecording) {
+      this.speechRecognition.stop();
+      this.isRecording = false;
+    } else {
+      this.isRecording = true;
+      this.errorMessage = '';
+      this.transcribedText = '';
+      this.hasTranscribed = false;
+      this.speechRecognition.start();
+    }
+  }
+
+  confirmTranscription(): void {
+    if (!this.transcribedText) {
+      this.errorMessage = 'No transcription available. Please record a prompt.';
+      return;
+    }
+    this.llmPrompt = this.transcribedText;
+    this.transcribedText = '';
+    this.hasTranscribed = false;
+    this.getLlmSuggestion();
+  }
+
+  reRecord(): void {
+    this.transcribedText = '';
+    this.hasTranscribed = false;
+    this.toggleVoiceInput();
+  }
+
   loadSuppliers(): void {
-    this.supplierService.getAllSuppliers().subscribe({
-      next: (data: Supplier[]) => {
-        this.suppliers = data;
+    this.supplierService.getAllSuppliers(this.currentPage, this.pageSize).subscribe({
+      next: (response: { content: Supplier[], totalElements: number, totalPages: number }) => {
+        this.suppliers = response.content;
+        this.totalElements = response.totalElements;
+        this.totalPages = response.totalPages;
         this.applyFilters();
         this.errorMessage = '';
       },
@@ -60,6 +157,17 @@ export class SupplierListComponent implements OnInit {
         this.errorMessage = 'Failed to load suppliers: ' + err.message;
       }
     });
+  }
+
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+      this.loadSuppliers();
+    }
+  }
+
+  get pages(): number[] {
+    return Array.from({ length: this.totalPages }, (_, i) => i);
   }
 
   createSupplier(): void {
@@ -74,6 +182,7 @@ export class SupplierListComponent implements OnInit {
         this.newSupplierForm.reset({ item: '', deliveryTime: 0, rejectionRate: 0 });
         this.applyFilters();
         this.errorMessage = '';
+        this.loadSuppliers();
       },
       error: (err: any) => {
         this.errorMessage = `Failed to create supplier: ${err.message}`;
@@ -147,6 +256,7 @@ export class SupplierListComponent implements OnInit {
           this.suppliers = this.suppliers.filter(s => s.id !== id);
           this.applyFilters();
           this.errorMessage = '';
+          this.loadSuppliers();
         },
         error: (err: any) => {
           this.errorMessage = 'Failed to delete supplier: ' + err.message;
@@ -183,7 +293,6 @@ export class SupplierListComponent implements OnInit {
       return;
     }
 
-    // Build filter criteria for the prompt
     const filterCriteria: string[] = [];
     if (this.filterItem) {
       filterCriteria.push(`item contains "${this.filterItem}"`);
@@ -198,7 +307,6 @@ export class SupplierListComponent implements OnInit {
       ? `Filtered by: ${filterCriteria.join(', ')}\n`
       : '';
 
-    // Use filteredSuppliers instead of suppliers to provide context
     const supplierData = this.filteredSuppliers.map(s => 
       `ID: ${s.id}, item: ${s.item}, Delivery Time: ${s.deliveryTime} days, Rejection Rate: ${s.rejectionRate}`
     ).join('\n');
@@ -270,10 +378,6 @@ export class SupplierListComponent implements OnInit {
     }
 
     this.filteredSuppliers = filtered;
-
-    if (this.sortColumn) {
-      this.sort(this.sortColumn);
-    }
   }
 
   private getFormErrors(form: FormGroup): string {

@@ -234,6 +234,23 @@
         </tr>
       </tbody>
     </table>
+
+    <!-- Pagination Controls -->
+    <div class="pagination-controls" *ngIf="totalElements > 0">
+      <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 0">Previous</button>
+      <span *ngFor="let page of pages">
+        <button
+          (click)="goToPage(page)"
+          [class.active]="page === currentPage"
+        >
+          {{ page + 1 }}
+        </button>
+      </span>
+      <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages - 1">Next</button>
+      <span class="pagination-info">
+        Page {{ currentPage + 1 }} of {{ totalPages }} ({{ totalElements }} suppliers)
+      </span>
+    </div>
   </div>
 
   <!-- LLM Suggestion -->
@@ -241,12 +258,31 @@
     <h3>Get Supplier Suggestion</h3>
     <div class="form-group">
       <label for="llm-prompt">Prompt:</label>
-      <input
-        id="llm-prompt"
-        type="text"
-        [(ngModel)]="llmPrompt"
-        placeholder="Enter prompt (e.g., Suggest a supplier for fast delivery)"
-      />
+      <div class="prompt-input-container">
+        <input
+          id="llm-prompt"
+          type="text"
+          [(ngModel)]="llmPrompt"
+          placeholder="Enter prompt (e.g., Suggest a supplier for fast delivery)"
+        />
+        <button
+          (click)="toggleVoiceInput()"
+          [class.recording]="isRecording"
+          class="voice-button"
+          [disabled]="isLoading"
+        >
+          <span *ngIf="!isRecording">🎙️</span>
+          <span *ngIf="isRecording">🛑</span>
+        </button>
+      </div>
+    </div>
+    <!-- Live Transcription Display -->
+    <div *ngIf="transcribedText" class="transcription-preview">
+      <strong>Transcribed Text:</strong> {{ transcribedText }}
+      <div *ngIf="hasTranscribed" class="transcription-actions">
+        <button (click)="confirmTranscription()" class="confirm-button">Confirm</button>
+        <button (click)="reRecord()" class="rerecord-button">Re-record</button>
+      </div>
     </div>
     <button (click)="getLlmSuggestion()" [disabled]="isLoading" class="suggestion-button">
       <span *ngIf="!isLoading">Get Suggestion</span>
