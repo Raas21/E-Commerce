@@ -1,10 +1,13 @@
 import { Component, OnInit } from '@angular/core';
-import { SupplierService } from '../../services/supplier.service';
-import { LlmService } from '../../services/llm.service';
-import { Supplier } from '../../models/supplier.model';
+import { SupplierService } from '@app/services/supplier.service';
+import { LlmService } from '@app/services/llm.service';
+import { Supplier } from '@app/models/supplier.model';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { environment } from '@environments/environment';
+import { catchError, throwError } from 'rxjs';
 
 @Component({
   selector: 'app-supplier-list',
@@ -41,97 +44,175 @@ export class SupplierListComponent implements OnInit {
 
   // Voice input properties
   isRecording: boolean = false;
-  speechRecognition: any; // SpeechRecognition instance
-  transcribedText: string = ''; // Live transcribed text
-  hasTranscribed: boolean = false; // Whether transcription has completed
+  stream: MediaStream | null = null;
+  mediaRecorder: MediaRecorder | null = null;
+  audioChunks: Blob[] = [];
+  transcribedText: string = '';
+  hasTranscribed: boolean = false;
+  recognitionTimeout: any;
 
   constructor(
     private supplierService: SupplierService,
     private llmService: LlmService,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private http: HttpClient
   ) {
     this.newSupplierForm = this.fb.group({
       item: ['', [Validators.required, Validators.maxLength(50)]],
       deliveryTime: [0, [Validators.required, Validators.min(1)]],
       rejectionRate: [0, [Validators.required, Validators.min(0), Validators.max(1)]]
     });
-
-    this.initializeSpeechRecognition();
   }
 
   ngOnInit(): void {
     this.loadSuppliers();
   }
 
-  initializeSpeechRecognition(): void {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      this.errorMessage = 'Speech recognition is not supported in this browser. Please use a modern browser like Chrome or Edge.';
-      return;
+  async toggleVoiceInput(): Promise<void> {
+    if (this.isRecording) {
+      this.stopRecording();
+    } else {
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.mediaRecorder = new MediaRecorder(this.stream);
+        this.audioChunks = [];
+
+        this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
+          this.audioChunks.push(event.data);
+        };
+
+        this.mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+          await this.transcribeAudio(audioBlob);
+          this.stream?.getTracks().forEach(track => track.stop());
+          this.stream = null;
+          this.mediaRecorder = null;
+          this.audioChunks = [];
+          this.isRecording = false;
+          clearTimeout(this.recognitionTimeout);
+        };
+
+        this.mediaRecorder.start();
+        this.isRecording = true;
+        this.errorMessage = '';
+        this.transcribedText = '';
+        this.hasTranscribed = false;
+
+        this.recognitionTimeout = setTimeout(() => {
+          if (this.isRecording) {
+            console.log('Recording timeout reached');
+            this.stopRecording();
+            this.errorMessage = 'No speech recorded within 10 seconds. Please try again or use manual input.';
+          }
+        }, 10000);
+      } catch (err: any) {
+        this.isRecording = false;
+        this.errorMessage = `Failed to access microphone: ${err.message}`;
+      }
     }
-
-    this.speechRecognition = new SpeechRecognition();
-    this.speechRecognition.continuous = false;
-    this.speechRecognition.interimResults = true; // Enable live transcription
-    this.speechRecognition.lang = 'en-US';
-
-    this.speechRecognition.onresult = (event: any) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-
-      this.transcribedText = finalTranscript + interimTranscript;
-      this.hasTranscribed = !!finalTranscript; // Set to true when final transcript is available
-    };
-
-    this.speechRecognition.onerror = (event: any) => {
-      this.isRecording = false;
-      this.hasTranscribed = false;
-      if (event.error === 'no-speech') {
-        this.errorMessage = 'No speech detected. Please try again.';
-      } else if (event.error === 'not-allowed') {
-        this.errorMessage = 'Microphone access denied. Please allow microphone access to use voice input.';
-      } else {
-        this.errorMessage = `Speech recognition error: ${event.error}`;
-      }
-    };
-
-    this.speechRecognition.onend = () => {
-      this.isRecording = false;
-    };
   }
 
-  toggleVoiceInput(): void {
-    if (!this.speechRecognition) {
-      this.errorMessage = 'Speech recognition is not supported in this browser.';
-      return;
+  stopRecording(): void {
+    if (this.mediaRecorder && this.isRecording) {
+      this.mediaRecorder.stop();
     }
+  }
 
-    if (this.isRecording) {
-      this.speechRecognition.stop();
-      this.isRecording = false;
-    } else {
-      this.isRecording = true;
-      this.errorMessage = '';
-      this.transcribedText = '';
-      this.hasTranscribed = false;
-      this.speechRecognition.start();
+  async transcribeAudio(audioBlob: Blob): Promise<void> {
+    try {
+      // Step 1: Upload the audio file to AssemblyAI
+      const uploadUrl = 'https://api.assemblyai.com/v2/upload';
+      const headers = new HttpHeaders({
+        'authorization': environment.assemblyAIKey,
+        'content-type': 'application/octet-stream'
+      });
+
+      const uploadResponse: any = await this.http.post(
+        uploadUrl,
+        audioBlob,
+        { headers, observe: 'response' }
+      ).pipe(
+        catchError(err => {
+          this.errorMessage = 'Failed to upload audio due to network issues. Please check your connection or use manual input.';
+          return throwError(() => err);
+        })
+      ).toPromise();
+
+      const audioUrl = uploadResponse.body.upload_url;
+
+      // Step 2: Request transcription
+      const transcribeUrl = 'https://api.assemblyai.com/v2/transcript';
+      const transcribeHeaders = new HttpHeaders({
+        'authorization': environment.assemblyAIKey,
+        'content-type': 'application/json'
+      });
+
+      const transcribeResponse: any = await this.http.post(
+        transcribeUrl,
+        { audio_url: audioUrl },
+        { headers: transcribeHeaders, observe: 'response' }
+      ).pipe(
+        catchError(err => {
+          this.errorMessage = 'Failed to request transcription due to network issues. Please check your connection or use manual input.';
+          return throwError(() => err);
+        })
+      ).toPromise();
+
+      const transcriptId = transcribeResponse.body.id;
+
+      // Step 3: Poll for transcription result
+      const pollUrl = `https://api.assemblyai.com/v2/transcript/${transcriptId}`;
+      let status = 'processing';
+      let attempts = 0;
+      const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds max wait
+
+      while (status === 'processing' || status === 'queued') {
+        if (attempts >= maxAttempts) {
+          this.errorMessage = 'Transcription timed out. Please try again or use manual input.';
+          return;
+        }
+
+        const pollResponse: any = await this.http.get(
+          pollUrl,
+          { headers: transcribeHeaders, observe: 'response' }
+        ).pipe(
+          catchError(err => {
+            this.errorMessage = 'Failed to retrieve transcription due to network issues. Please check your connection or use manual input.';
+            return throwError(() => err);
+          })
+        ).toPromise();
+
+        status = pollResponse.body.status;
+        if (status === 'completed') {
+          this.transcribedText = pollResponse.body.text || '';
+          this.hasTranscribed = true;
+          console.log('AssemblyAI transcription:', this.transcribedText);
+
+          if (!this.transcribedText) {
+            this.errorMessage = 'No speech detected in the recording. Please try again or use manual input.';
+          }
+        } else if (status === 'error') {
+          this.errorMessage = 'Transcription failed on the server. Please try again or use manual input.';
+          return;
+        }
+
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before polling again
+      }
+    } catch (err: any) {
+      console.error('Transcription error:', err);
+      if (!this.errorMessage) {
+        this.errorMessage = 'Failed to transcribe audio: ' + err.message + '. Please use manual input instead.';
+      }
     }
   }
 
   confirmTranscription(): void {
     if (!this.transcribedText) {
-      this.errorMessage = 'No transcription available. Please record a prompt.';
+      this.errorMessage = 'No transcription available. Please record a prompt or enter one manually.';
       return;
     }
+    console.log('Confirming transcription:', this.transcribedText);
     this.llmPrompt = this.transcribedText;
     this.transcribedText = '';
     this.hasTranscribed = false;
@@ -139,6 +220,7 @@ export class SupplierListComponent implements OnInit {
   }
 
   reRecord(): void {
+    console.log('Re-recording');
     this.transcribedText = '';
     this.hasTranscribed = false;
     this.toggleVoiceInput();
@@ -180,6 +262,8 @@ export class SupplierListComponent implements OnInit {
       next: (supplier: Supplier) => {
         this.suppliers.push(supplier);
         this.newSupplierForm.reset({ item: '', deliveryTime: 0, rejectionRate: 0 });
+        this.newSupplierForm.markAsPristine();
+        this.newSupplierForm.markAsUntouched();
         this.applyFilters();
         this.errorMessage = '';
         this.loadSuppliers();
@@ -233,6 +317,11 @@ export class SupplierListComponent implements OnInit {
             this.suppliers[index] = updatedSupplier;
           }
           this.editSupplier = null;
+          if (this.editSupplierForm) {
+            this.editSupplierForm.reset();
+            this.editSupplierForm.markAsPristine();
+            this.editSupplierForm.markAsUntouched();
+          }
           this.editSupplierForm = null;
           this.applyFilters();
           this.errorMessage = '';
@@ -243,6 +332,11 @@ export class SupplierListComponent implements OnInit {
       });
     } else {
       this.editSupplier = null;
+      if (this.editSupplierForm) {
+        this.editSupplierForm.reset();
+        this.editSupplierForm.markAsPristine();
+        this.editSupplierForm.markAsUntouched();
+      }
       this.editSupplierForm = null;
       this.applyFilters();
       this.errorMessage = '';
@@ -267,6 +361,11 @@ export class SupplierListComponent implements OnInit {
 
   cancelEdit(): void {
     this.editSupplier = null;
+    if (this.editSupplierForm) {
+      this.editSupplierForm.reset();
+      this.editSupplierForm.markAsPristine();
+      this.editSupplierForm.markAsUntouched();
+    }
     this.editSupplierForm = null;
     this.errorMessage = '';
   }
