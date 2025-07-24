@@ -1,6 +1,6 @@
-# Evolving UI Design Mini Project
+# E-commerce Platform with AI Chatbot & Visualization
 
-This repository contains the **Evolving UI Design** mini project — a web application for managing suppliers with AI-powered suggestions. It is built using an **Angular 19** front-end and a **Spring Boot** back-end, integrated with the **Groq API** for AI recommendations. Users can perform CRUD operations on suppliers and get intelligent suggestions based on criteria like delivery time.
+This repository contains the **E-commerce Platform with AI Chatbot & Visualization** mini project — a web application for managing suppliers with AI-powered suggestions. It is built using an **Angular 19** front-end and a **Spring Boot** back-end, integrated with the **Groq API** for AI recommendations. Users can perform CRUD operations on suppliers and get intelligent suggestions based on criteria like delivery time.
 
 ---
 
